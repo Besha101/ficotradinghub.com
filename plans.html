@@ -224,38 +224,13 @@ vip: {
      3.3 SUPABASE: snimi DRAFT prije plaćanja
      ========================= */
   async function ensureDraftLead(planKey){
-  const full_name = document.getElementById('fullname')?.value?.trim() || null;
-  const email     = document.getElementById('email')?.value?.trim()     || null;
-  const discord   = document.getElementById('discord')?.value?.trim()   || null;
+  const full_name = document.getElementById('fullname')?.value?.trim();
+  const email     = document.getElementById('email')?.value?.trim();
+  const discord   = document.getElementById('discord')?.value?.trim();
 
-  const existing = localStorage.getItem('lead_id');
+  if (!full_name || !email || !discord) return null;
 
-  // Ako postoji draft: dopuni/azuriraj podatke (ako su unijeti)
-  if (existing) {
-    const update = { plan: planKey };
-    if (full_name) update.full_name = full_name;
-    if (email)     update.email     = email;
-    if (discord)   update.discord   = discord;
-
-    // samo ako imamo nešto za upisati
-    if (Object.keys(update).length > 1) {
-      const { error: upErr } = await supa
-        .from('leads')
-        .update(update)
-        .eq('id', existing);
-      if (upErr) {
-        console.error(upErr);
-        alert('Greška (Supabase update): ' + (upErr.message || ''));
-      }
-    }
-    return existing;
-  }
-
-  // NEMOJ praviti red dok nisu popunjena polja
-  if (!full_name || !email || !discord) {
-    return null;
-  }
-
+  // svaki klik na plaćanje pravi NOVI draft red
   const { data, error } = await supa
     .from('leads')
     .insert([{
@@ -272,9 +247,11 @@ vip: {
     return null;
   }
 
+  // zapamti id ovog pokušaja plaćanja (da ga kasnije markiramo kao paid)
   localStorage.setItem('lead_id', data.id);
   return data.id;
 }
+
 
   
   function waitNS(ns, cb, retries = 20) {
@@ -405,6 +382,9 @@ async function finalizePaypal(payload){
     titleEl.textContent = 'Buy – ' + plan.title;
 
     // 1) prvo otvori modal da se korisniku prikaže UI
+localStorage.removeItem('lead_id');   // svaki put krećemo svježe
+
+    
     openSheet();
 
     // 2) zatim (ne-blocking) probaj kreirati draft
