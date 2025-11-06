@@ -224,43 +224,58 @@ vip: {
      3.3 SUPABASE: snimi DRAFT prije plaćanja
      ========================= */
   async function ensureDraftLead(planKey){
-    const full_name = document.getElementById('fullname')?.value?.trim() || null;
-    const email     = document.getElementById('email')?.value?.trim()     || null;
-    const discord   = document.getElementById('discord')?.value?.trim()   || null;
+  const full_name = document.getElementById('fullname')?.value?.trim() || null;
+  const email     = document.getElementById('email')?.value?.trim()     || null;
+  const discord   = document.getElementById('discord')?.value?.trim()   || null;
 
-    // Ako već imamo lead_id (npr. korisnik zatvorio pa opet otvorio modal), preskačemo insert
-    const existing = localStorage.getItem('lead_id');
-    if (existing) return existing;
+  const existing = localStorage.getItem('lead_id');
 
-    
+  // Ako postoji draft: dopuni/azuriraj podatke (ako su unijeti)
+  if (existing) {
+    const update = { plan: planKey };
+    if (full_name) update.full_name = full_name;
+    if (email)     update.email     = email;
+    if (discord)   update.discord   = discord;
 
+    // samo ako imamo nešto za upisati
+    if (Object.keys(update).length > 1) {
+      const { error: upErr } = await supa
+        .from('leads')
+        .update(update)
+        .eq('id', existing);
+      if (upErr) {
+        console.error(upErr);
+        alert('Greška (Supabase update): ' + (upErr.message || ''));
+      }
+    }
+    return existing;
+  }
 
-    const { data, error } = await supa
-      .from('leads')
-      .insert([{
-        full_name, email, discord,
-        plan: planKey,        // 'basic' | 'pro' | 'vip'
-        status: 'draft'
-      }])
-      .select('id')
-      .single();
+  // NEMOJ praviti red dok nisu popunjena polja
+  if (!full_name || !email || !discord) {
+    return null;
+  }
 
+  const { data, error } = await supa
+    .from('leads')
+    .insert([{
+      full_name, email, discord,
+      plan: planKey,
+      status: 'draft'
+    }])
+    .select('id')
+    .single();
 
+  if (error) {
+    console.error(error);
+    alert('Greška (Supabase insert): ' + (error.message || ''));
+    return null;
+  }
 
-    if (error) {
-  console.error(error);
-  alert('Greška pri spremanju podataka (draft). Pokušaj ponovo.');
-  return null; // NEMOJ bacati; pusti UI da živi
+  localStorage.setItem('lead_id', data.id);
+  return data.id;
 }
 
-    localStorage.setItem('lead_id', data.id);
-    return data.id;
-
-    // nakon uspješnog kreiranja draft reda:
-await supa.from('leads')
-  .update({ status: 'pending' })
-  .eq('id', newLeadId);
-  }
   
   function waitNS(ns, cb, retries = 20) {
     const pp = window[ns];
@@ -268,6 +283,15 @@ await supa.from('leads')
     if (retries <= 0) return alert(`PayPal SDK nije učitan (${ns}).`);
     setTimeout(() => waitNS(ns, cb, retries - 1), 250);
   }
+
+
+function fieldsOk(){
+  const full = document.getElementById('fullname')?.value?.trim();
+  const mail = document.getElementById('email')?.value?.trim();
+  const disc = document.getElementById('discord')?.value?.trim();
+  const mailOk = !!mail && mail.includes('@') && mail.includes('.');
+  return !!full && mailOk && !!disc;
+}
 
 
   /* =========================
@@ -290,7 +314,11 @@ await supa.from('leads')
         fundingSource: pp.FUNDING.PAYPAL,
         style: { ...style, label:'subscribe' },
 
-        onClick: async () => { window.__leadId = await ensureDraftLead(planKey); },
+        onClick: async () => {
+  if (!fieldsOk()) { alert('Popuni ime, email i Discord.'); return false; }
+  window.__leadId = await ensureDraftLead(planKey);
+},
+
 
         createSubscription: (data, actions) =>
           actions.subscription.create({ plan_id: plan.paypalPlanId }),
@@ -310,7 +338,11 @@ await supa.from('leads')
       fundingSource: pp.FUNDING.PAYPAL,
       style: { ...style, label:'pay' },
 
-      onClick: async () => { window.__leadId = await ensureDraftLead(planKey); },
+      onClick: async () => {
+  if (!fieldsOk()) { alert('Popuni ime, email i Discord.'); return false; }
+  window.__leadId = await ensureDraftLead(planKey);
+},
+
 
       createOrder: (data, actions) => actions.order.create({
   intent: 'CAPTURE',
@@ -376,12 +408,7 @@ async function finalizePaypal(payload){
     openSheet();
 
     // 2) zatim (ne-blocking) probaj kreirati draft
-    try {
-      await ensureDraftLead(key);
-    } catch(e) {
-      console.warn('Draft lead nije spremljen (još).', e);
-      // ne zatvaraj modal; korisnik smije popuniti polja i probati opet
-    }
+    
 
     // 3) na kraju pripremi PayPal dugme
     // 3) pripremi PayPal dugme tek kada je SDK spreman
@@ -395,6 +422,11 @@ renderPayPalFor(key);
      3.6 Crypto dugme — kreiraj Coinbase charge preko Edge Function
      ========================= */
   cryptoBtn.addEventListener('click', async (e)=>{
+    if (!fieldsOk()) {
+  alert('Popuni ime, email i Discord prije plaćanja.');
+  return;
+}
+
     e.preventDefault();
     const key = window.__currentPlanKey || 'basic';
     const lead_id = await ensureDraftLead(key);    // sigurnosno: imamo draft
