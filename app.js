@@ -20,6 +20,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('year').textContent = new Date().getFullYear();
 });
 
+function waitForPaypalLoaded(callback, retries = 10) {
+  if (window.paypal && window.paypal.Buttons) {
+    callback();
+  } else if (retries > 0) {
+    setTimeout(() => waitForPaypalLoaded(callback, retries - 1), 500);
+  } else {
+    alert("PayPal SDK nije učitan (provjeri skriptu ili adblocker).");
+  }
+}
+
+
 
 /* === Auto ACTIVE link u glavnom meniju ===
    Ukloni ručni class="active" iz HTML-a; ovaj kod će ga postaviti za tekuću stranicu. */

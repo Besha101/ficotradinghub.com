@@ -5,6 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fico Trading Hub — Planovi</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* dodatni minimalni stil samo za modal i dugmad */
+    .plans-title{ text-align:center; color:var(--gold); font-size:clamp(28px,3vw,42px); margin-bottom:8px }
+    .plans-sub{ text-align:center; color:#cfc7b0 }
+
+    /* Modal / sheet */
+    .mask{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:2000}
+    .sheet{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+      width:min(92%,720px);background:#0f141a;border:1px solid rgba(196,162,76,.35);
+      border-radius:16px;padding:20px;display:none;z-index:2001;box-shadow:0 18px 60px rgba(0,0,0,.45)}
+    .sheet header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .sheet h4{font-size:18px;color:var(--gold)}
+    .x{background:none;border:0;color:#fff;font-size:22px;cursor:pointer}
+    .sheet .row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .field{margin:12px 0}
+    label{display:block;color:var(--gold);font-weight:600;margin-bottom:6px}
+    input{width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid rgba(196,162,76,.35);
+      background:#101419;color:var(--text)}
+    .pay-actions{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;        /* oba zauzimaju 100% širine */
+  gap:12px;
+  margin-top:12px;
+}
+
+    #paypal-button-container{min-width:180px}
+    .crypto-btn{background:var(--gold);color:#14120a;font-weight:800;padding:12px 18px;border-radius:10px;border:none;cursor:pointer}
+    .note{font-size:12px;color:#c9c4b1;margin-top:8px}
+    @media (max-width:980px){ .sheet .row{grid-template-columns:1fr} }
+  </style>
 </head>
 <body class="plans-page">
   <header class="site-header">
@@ -23,12 +54,11 @@
         <a href="kontakt.html">Contact</a>
       </nav>
 
-      <a href="https://discord.gg/mSSNdsRMRc" target="_blank" class="btn pill">Join Discord</a>
+      <a href="https://discord.gg/a25Q8pmr6B" target="_blank" class="btn pill">Join Discord</a>
       <button class="hamburger" aria-label="Menu"><span></span><span></span><span></span></button>
     </div>
   </header>
 
-  <!-- bez page-top-pad, sve rješava CSS za .plans-page -->
   <main>
     <section class="section container plans-section">
       <h2 class="plans-title">Planovi</h2>
@@ -36,32 +66,361 @@
 
       <div class="plans-flex">
         <div class="plan">
-          <h3>Trading Circle</h3>
+          <h3>Trading Circle (Monthly)</h3>
           <br>
           <p>Svakodnevne analize marketa + community</p>
-          <a href="payment.html" class="cta">€65/Month</a>
+          <a href="#" class="cta open-pay" data-plan="basic">€65/Month</a>
         </div>
 
         <div class="plan">
           <h3>One-to-One Mentorship</h3>
           <br>
           <p>Individualni program prilagođen tvom tempu</p>
-          <a href="payment.html" class="cta">€100/Hour</a>
+          <a href="#" class="cta open-pay" data-plan="pro">€100/Hour</a>
         </div>
 
         <div class="plan">
           <h3>Smart Money (Approach) to Trading</h3>
           <p>Kompletan tečaj koji te vodi od osnova do naprednog Smart Money pristupa!</p>
-          <a href="payment.html" class="cta">€700/OneTimePayment</a>
+          <a href="#" class="cta open-pay" data-plan="vip">€700/OneTimePayment</a>
         </div>
       </div>
     </section>
   </main>
 
+  <!-- Footer -->
   <footer class="footer">
     <div class="container">© <span id="year"></span> Fico Trading Hub. All rights reserved.</div>
   </footer>
+  
 
-  <script src="app.js"></script>
+  <!-- Modal (PayPal + Crypto) -->
+  <div class="mask" id="mask"></div>
+  <div class="sheet" id="sheet">
+    <header>
+      <h4 id="sheetTitle">Subscribe</h4>
+      <button class="x" id="closeX" aria-label="Close">×</button>
+    </header>
+
+    <div class="row">
+      <div>
+        <div class="field">
+          <label for="fullname">Ime i prezime</label>
+          <input id="fullname" type="text" placeholder="Vaše ime i prezime" required>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="you@example.com" required>
+
+        </div>
+        <div class="field">
+          <label for="discord">Discord ime</label>
+          <input id="discord" type="text" placeholder="user#0000" required>
+        </div>
+        
+      </div>
+
+      <div>
+        <p style="color:#cfc7b0;margin-bottom:8px">Plati:</p>
+        <div class="pay-actions" style="flex-direction:column;align-items:flex-start;">
+  <button id="cryptoBtn" class="crypto-btn" type="button" aria-label="Pay with Crypto">
+    <span class="bag" aria-hidden="true">💰</span>
+    <span class="label">Pay with Crypto</span>
+  </button>
+
+  <div id="paypal-button-container" style="width:100%;margin-top:10px;"></div>
+</div>
+
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 1) SUPABASE SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://zzgqjwoqrzyjcwtvhjvy.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_igkyKUI9X3WdZWOigvqAog_69T7XnGh";
+  const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+
+<!-- PayPal SDK za SUBSCRIPTIONS (Monthly) -->
+<script
+  src="https://www.paypal.com/sdk/js?client-id=Ab94q_Mu_bnDMQWtAIdRK8wq7xf8-94E2Ikk_WjZO3HQdw-bd0Jy82tB78e9UL_O2RySt2gBW4NaKZFo&components=buttons&currency=EUR&vault=true&intent=subscription"
+  data-namespace="paypalSubs">
+</script>
+
+<!-- PayPal SDK za ONE-TIME ORDERS (Pro/VIP) -->
+<script
+  src="https://www.paypal.com/sdk/js?client-id=Ab94q_Mu_bnDMQWtAIdRK8wq7xf8-94E2Ikk_WjZO3HQdw-bd0Jy82tB78e9UL_O2RySt2gBW4NaKZFo&components=buttons&currency=EUR"
+  data-namespace="paypalOrd">
+</script>
+
+
+
+
+
+
+
+<script src="app.js"></script>
+
+<!-- 3) TVOJ APP SCRIPT: CONFIG + MODAL + SUPABASE DRAFT + PAYPAL + CRYPTO -->
+<script>
+  /* =========================
+     3.1 CONFIG — zamijeni ID-eve i URL-ove
+     ========================= */
+  const CONFIG = {
+  plans: {
+    basic: {            // Trading Circle (monthly)
+      title: 'Trading Circle (Monthly)',
+      type: 'subscription',
+      paypalPlanId: 'P_YOUR_PLAN_ID'     // <-- postavi pravi
+    },
+    pro: {
+  title: 'One-to-One Mentorship',
+  type: 'one_time',
+  amount: { currency_code: 'EUR', value: '100.00' },
+  paypalItemId: 'PRO-001'
+},
+vip: {
+  title: 'Smart Money (Approach) to Trading',
+  type: 'one_time',
+  amount: { currency_code: 'EUR', value: '700.00' },
+  paypalItemId: 'VIP-001'
+}
+
+  }
+};
+
+
+  /* =========================
+     3.2 Modal helpers (OSTAJE ISTO)
+     ========================= */
+  const mask      = document.getElementById('mask');
+  const sheet     = document.getElementById('sheet');
+  const titleEl   = document.getElementById('sheetTitle');
+  const cryptoBtn = document.getElementById('cryptoBtn');
+
+  function openSheet(){
+  mask.style.display='block';
+  sheet.style.display='block';
+
+  // --- animacija crypto dugmeta pri otvaranju ---
+  if (cryptoBtn){
+    cryptoBtn.classList.remove('reveal');   // reset
+    void cryptoBtn.offsetWidth;             // reflow hack
+    setTimeout(()=> cryptoBtn.classList.add('reveal'), 850);
+  }
+}
+
+  function closeSheet(){ mask.style.display='none';  sheet.style.display='none';  }
+  document.getElementById('closeX').onclick = closeSheet;
+  mask.onclick = closeSheet;
+
+  // Globalno pratimo koji je plan otvoren u modalu
+  window.__currentPlanKey = 'basic';
+
+  /* =========================
+     3.3 SUPABASE: snimi DRAFT prije plaćanja
+     ========================= */
+  async function ensureDraftLead(planKey){
+    const full_name = document.getElementById('fullname')?.value?.trim() || null;
+    const email     = document.getElementById('email')?.value?.trim()     || null;
+    const discord   = document.getElementById('discord')?.value?.trim()   || null;
+
+    // Ako već imamo lead_id (npr. korisnik zatvorio pa opet otvorio modal), preskačemo insert
+    const existing = localStorage.getItem('lead_id');
+    if (existing) return existing;
+
+    
+
+
+    const { data, error } = await supa
+      .from('leads')
+      .insert([{
+        full_name, email, discord,
+        plan: planKey,        // 'basic' | 'pro' | 'vip'
+        status: 'draft'
+      }])
+      .select('id')
+      .single();
+
+
+
+    if (error) {
+  console.error(error);
+  alert('Greška pri spremanju podataka (draft). Pokušaj ponovo.');
+  return null; // NEMOJ bacati; pusti UI da živi
+}
+
+    localStorage.setItem('lead_id', data.id);
+    return data.id;
+
+    // nakon uspješnog kreiranja draft reda:
+await supa.from('leads')
+  .update({ status: 'pending' })
+  .eq('id', newLeadId);
+  }
+  
+  function waitNS(ns, cb, retries = 20) {
+    const pp = window[ns];
+    if (pp && pp.Buttons) return cb(pp);
+    if (retries <= 0) return alert(`PayPal SDK nije učitan (${ns}).`);
+    setTimeout(() => waitNS(ns, cb, retries - 1), 250);
+  }
+
+
+  /* =========================
+     3.4 PayPal dugme za odabrani plan
+     ========================= */
+  async function renderPayPalFor(planKey){
+  const plan = CONFIG.plans[planKey];
+  const container = document.getElementById('paypal-button-container');
+  container.innerHTML = '';
+
+  // izaberi PayPal namespace po tipu plana
+  const ns = (plan.type === 'subscription') ? 'paypalSubs' : 'paypalOrd';
+
+  waitNS(ns, (pp) => {
+    const style = { layout:'vertical', shape:'rect', color:'gold', height:48 };
+
+    if (plan.type === 'subscription') {
+      // MONTHLY: koristi plan_id iz PayPal Subscriptions
+      pp.Buttons({
+        fundingSource: pp.FUNDING.PAYPAL,
+        style: { ...style, label:'subscribe' },
+
+        onClick: async () => { window.__leadId = await ensureDraftLead(planKey); },
+
+        createSubscription: (data, actions) =>
+          actions.subscription.create({ plan_id: plan.paypalPlanId }),
+
+        onApprove: async (data) => {
+          await finalizePaypal({ kind:'subscription', id: data.subscriptionID, lead_id: window.__leadId });
+        },
+
+        onError: (err) => { console.error(err); alert('PayPal greška (subscription).'); }
+      }).render('#paypal-button-container');
+
+      return;
+    }
+
+    // ONE-TIME: koristi Orders (createOrder + capture)
+    pp.Buttons({
+      fundingSource: pp.FUNDING.PAYPAL,
+      style: { ...style, label:'pay' },
+
+      onClick: async () => { window.__leadId = await ensureDraftLead(planKey); },
+
+      createOrder: (data, actions) => actions.order.create({
+  intent: 'CAPTURE',
+  purchase_units: [{
+    reference_id: plan.paypalItemId || planKey,
+    amount: {
+      currency_code: plan.amount.currency_code,
+      value: plan.amount.value
+    }
+  }],
+  application_context: {
+    shipping_preference: 'NO_SHIPPING'
+  }
+}),
+
+
+      onApprove: async (data, actions) => {
+        const order = await actions.order.capture();
+        await finalizePaypal({ kind:'order', id: order.id, lead_id: window.__leadId });
+      },
+
+      onError: (err) => { console.error(err); alert('PayPal greška (order).'); }
+    }).render('#paypal-button-container');
+  });
+}
+
+
+
+async function finalizePaypal(payload){
+  try {
+    const res = await fetch('https://zzgqjwoqrzyjcwtvhjvy.functions.supabase.co/paypal-complete', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const out = await res.json();
+    if(!res.ok) throw new Error(out.error || 'Webhook error');
+
+    alert('Uplata zaprimljena, javiti ću vam se uskoro na Discordu. Hvala!');
+    localStorage.removeItem('lead_id');
+    closeSheet();
+  } catch(e){
+    console.error(e);
+    alert('Greška pri evidenciji uplate (backend).');
+  }
+}
+
+  
+
+  /* =========================
+     3.5 Klik na plan — otvori modal i pripremi PayPal + Crypto
+     ========================= */
+  document.querySelectorAll('.open-pay').forEach(btn=>{
+  btn.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    const key = btn.dataset.plan;                // 'basic' | 'pro' | 'vip'
+    const plan = CONFIG.plans[key];
+    if (!plan) return;
+
+    window.__currentPlanKey = key;
+    titleEl.textContent = 'Buy – ' + plan.title;
+
+    // 1) prvo otvori modal da se korisniku prikaže UI
+    openSheet();
+
+    // 2) zatim (ne-blocking) probaj kreirati draft
+    try {
+      await ensureDraftLead(key);
+    } catch(e) {
+      console.warn('Draft lead nije spremljen (još).', e);
+      // ne zatvaraj modal; korisnik smije popuniti polja i probati opet
+    }
+
+    // 3) na kraju pripremi PayPal dugme
+    // 3) pripremi PayPal dugme tek kada je SDK spreman
+renderPayPalFor(key);
+
+  });
+});
+
+
+  /* =========================
+     3.6 Crypto dugme — kreiraj Coinbase charge preko Edge Function
+     ========================= */
+  cryptoBtn.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    const key = window.__currentPlanKey || 'basic';
+    const lead_id = await ensureDraftLead(key);    // sigurnosno: imamo draft
+
+    try {
+      const res = await fetch('https://zzgqjwoqrzyjcwtvhjvy.functions.supabase.co/create-bybit-invoice', {
+  method: 'POST',
+  headers:{ 'Content-Type':'application/json' },
+  body: JSON.stringify({ planKey: key, lead_id })
+});
+      const out = await res.json();
+      if (!res.ok || !out.hosted_url) throw new Error(out.error || 'Charge error');
+
+      // redirekcija na Coinbase Hosted Checkout
+      location.href = out.hosted_url;
+    } catch (e2) {
+      console.error(e2);
+      alert('Greška pri kreiranju crypto uplate.');
+    }
+  });
+
+  /* =========================
+     3.7 Footer godina (ostaje)
+     ========================= */
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+
 </body>
 </html>

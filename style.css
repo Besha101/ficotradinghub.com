@@ -223,6 +223,7 @@ body.home-page main{
 }
 
 
+
 /* ====== PLANS ====== */
 .plans-section {
   text-align: center;
@@ -279,14 +280,16 @@ body.home-page main{
   filter: brightness(1.1);
   transform: scale(1.05);
 }
+
 .plans-title {
   text-align: center;
   color: var(--gold);
   font-size: clamp(28px, 3vw, 42px);
   margin-bottom: 8px;
 }
+
 /* ====== Onemogući selektovanje teksta u planovima ====== */
-.plans-flex, 
+.plans-flex,
 .plans-flex * {
   user-select: none;
   -webkit-user-select: none;
@@ -294,39 +297,109 @@ body.home-page main{
   -ms-user-select: none;
 }
 
-.item .value {
+/* ====== MODAL STYLING (PayPal + Crypto) ====== */
+.pay-actions {
   display: flex;
-  align-items: center; /* centriranje broja i badge-a */
-  gap: 12px;           /* razmak između njih */
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  margin-top: 20px;
 }
 
-.tg-badge-inline {
+:root {
+  --pp-gold: #ffc439;
+}
+
+.crypto-btn {
+  width: 100%;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: -8px;
+
+  /* potpuno ista PayPal nijansa */
+  background: #f2ba36 !important;                   /* ista boja kao PayPal */
+  color: #312f2f;
+  font-weight: 800;
+  font-size: 15px;
+  border: none;
+  border-radius: 6px;                    /* isti radius kao PayPal dugme */
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), inset 0 2px 0 rgba(255,255,255,0.3);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.crypto-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.crypto-btn:active {
+  transform: translateY(0);
+}
+
+
+.crypto-btn:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.crypto-btn:active {
+  transform: translateY(0);
+}
+
+/* unutrašnja animacija */
+.crypto-btn .bag {
+  font-size: 18px;
+  transform: translateX(70px);
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+  margin-right: 4px;           /* lagano centriranje ikone */
+}
+
+.crypto-btn .label {
+  opacity: 0;
+  transform: translateX(16px);
+  transition: opacity 0.35s ease 0.18s, transform 0.35s ease 0.18s;
+  white-space: nowrap;
+}
+
+/* animacija reveal pri otvaranju modala */
+.crypto-btn.reveal .bag {
+  transform: translateX(10px); /* blaži pomak da ostane centrirana */
+}
+
+.crypto-btn.reveal .label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ====== Telegram dugme uz broj ====== */
+.telegram-btn {
   display: inline-flex;
-  align-items: center;      /* centrirano vertikalno */
-  gap: 8px;
-  margin-left: 12px;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
   background: #0b0f14;
-  padding: 6px 12px;
-  border: 1px solid rgba(196,162,76,.35);
-  border-radius: 12px;
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.tg-badge-inline:hover {
-  border-color: var(--gold);
-  transform: scale(1.05);
-}
-
-.tg-badge-inline span {
-  color: #e9e9e9;
+  color: #fff;
   font-weight: 600;
-  line-height: 1; /* sprečava pomak teksta dolje */
+  padding: 5px 10px 6px 8px;
+  border: 1px solid rgba(196, 162, 76, 0.35);
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 14px;
+  transition: transform 0.2s ease, filter 0.2s ease, background 0.3s;
 }
 
-.tg-badge-inline .tg-icon {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
+.telegram-btn:hover {
+  filter: brightness(1.1);
+  background: #141a20;
+  transform: translateY(-1px);
 }
 
+.telegram-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
